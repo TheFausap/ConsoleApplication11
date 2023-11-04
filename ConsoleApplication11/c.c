@@ -5,6 +5,8 @@
 #include <ctype.h>
 #include <stdint.h>
 #include <time.h>
+#include <unistd.h>
+#include <termios.h>
 
 #define WSIZE 8
 #define MSIZE 65536
@@ -28,6 +30,8 @@ word ONES16[2 * WSIZE];
 uint16_t PC;
 char HLTF;
 word dly;
+
+static struct termios oldt, newt;
 
 word* M[MSIZE];
 
@@ -334,19 +338,19 @@ void _daa(void)
 void in(word t)
 {
     int rr = 0;
+    word st1[] = {0,1,1,0,0,0,1,1};
+    word st2[] = {1,0,0,1,1,1,0,0};
     switch (t) {
     case 0:
-        if (dly) {
-            dly = 0;
-            for (int i = 0; i < 1000000; i++) {}
-            rr = rand();
-            if (rr > 0x3ef) mv(A, (word*)"01100111");
-            else mv(A, (word*)"10011100");
-        }
+        // STATUS
+	    for (int i = 0; i < 1000000; i++) {}
+        rr = rand()%0xfff;
+        if (rr > 0x3ef) mv(A, st1);
+        else mv(A, st2);
         break;
     case 1:
-        u8b(getc(stdin), A);
-        dly = 1;
+        // DATA
+        u8b(getchar(), A);
         break;
     default:
         break;
@@ -357,11 +361,8 @@ void out(word t)
 {
     switch (t) {
     case 1:
-        if (dly == 0) {
-            fprintf(stdout, "%c", b2u(A));
-            fflush(stdout);
-        }
-        dly = 1;
+        // DATA
+        putchar((char)b2u(A));
         break;
     default:
         break;
@@ -1307,6 +1308,7 @@ void exc(word* a)
         SP[10] = L[2]; SP[11] = L[3];
         SP[12] = L[4]; SP[13] = L[5];
         SP[14] = L[6]; SP[15] = L[7];
+        PC++;
         break;
     case 0xA:
         // LDAX
@@ -1873,7 +1875,7 @@ word* x2b(char* s)
 
 void lhex(char *n)
 {
-    char* bf, * p, * du2, * du4, * da, * oda;
+    char* bf, * p, * du2, * du4, * da, * oda, pcs=0;
     int bc, ad, rc, ck;
 
     FILE* fi;
@@ -1890,7 +1892,7 @@ void lhex(char *n)
     while (fgets(bf, 79, fi)) {
         da = oda;
         p = strchr(bf, '\n');
-        *p = 0;
+        if (p) *p = 0;
         if (*bf == ' ') bf++; // remove initial space from weird PL/M output
         if (*bf != ':') continue;
         if (strcmp(bf, ":00000001FF") == 0) break;
@@ -1899,12 +1901,18 @@ void lhex(char *n)
         bc = (int)strtol(strncpy(du2, bf, 2), NULL, 16);
         bf += 2;
         ad = (int)strtol(strncpy(du4, bf, 4), NULL, 16);
-        if (!PC) PC = ad;
         bf += 4;
         rc = (int)strtol(strncpy(du2, bf, 2), NULL, 16);
         bf += 2;
         memcpy(da, bf, bc * 2);
         bf += (bc * 2);
+        if (rc==0) {
+            if(!pcs) {
+                PC+=ad;
+                pcs=1;
+            }
+        }
+        else if (rc==4) PC=da[0]*256+da[1];
         ck = (int)strtol(strncpy(du2, bf, 2), NULL, 16);
         for (int i = 0; i < 2 * bc; i += 2) {
             du2[0] = da[0]; du2[1] = da[1];
@@ -1928,8 +1936,15 @@ int main(int n, char** a)
 {
     i0();
     lhex("3809.hex");
+    lhex("5.hex");
 
     if (n>1) lhex(a[1]);
+    tcgetattr( STDIN_FILENO, &oldt);
+    newt=oldt;
+    newt.c_lflag &= ~(ICANON);
+    newt.c_lflag &= ~(ECHO);
+    newt.c_oflag |= (OPOST|ONLRET);
+    tcsetattr( STDIN_FILENO, TCSANOW, &newt);
     printf("I8080B\n");
     printf("Starting at %04XH\n", PC);
 
@@ -1950,6 +1965,7 @@ int main(int n, char** a)
     dump(0xf0, 0xff);
 
     printf("\n"); fflush(stdout);
+    tcsetattr( STDIN_FILENO, TCSANOW, &oldt);
    
     return 0;
 }
