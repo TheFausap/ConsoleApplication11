@@ -251,19 +251,11 @@ void _sub(word* r, word* ss, word* c)
     s = calloc(WSIZE, sizeof(char));
     oFL = calloc(WSIZE, sizeof(char));
     mv(s, ss);
-    
-    /* if (*c) {
-        mv(oFL, FL);
-        _add(s, ZERO, c);
-        *c = 0;
-        mv(FL, oFL);
-    }*/
     cmp(s);
     for (int i = WSIZE - 1; i >= 0; i--) {
         r[i] = ab(r[i], s[i], c);
         if (i == 3) FL[3] = *c;
     }
-    //FL[7] = (isz(s)==1) ? *c : (*c) ^ 1;
     FL[7] = (*c) ^ 1;
     FL[0] = r[0];
     if (isz(r)) FL[1] = 1; else FL[1] = 0;
@@ -338,12 +330,12 @@ void _daa(void)
 void in(word t)
 {
     int rr = 0;
-    word st1[] = {0,1,1,0,0,0,1,1};
-    word st2[] = {1,0,0,1,1,1,0,0};
+    word st1[] = { 0,0,0,0,0,1,0,1 };
+    word st2[] = { 1,0,0,0,0,1,0,0 };
     switch (t) {
     case 0:
         // STATUS
-	    for (int i = 0; i < 1000000; i++) {}
+	    for (int i = 0; i < 10000; i++) {}
         rr = rand()%0xfff;
         if (rr > 0x3ef) mv(A, st1);
         else mv(A, st2);
@@ -1935,8 +1927,11 @@ void dump(uint16_t s, uint16_t e)
 int main(int n, char** a)
 {
     i0();
-    lhex("3809.hex");
-    lhex("5.hex");
+    //lhex("3809.hex");
+    //lhex("3829.hex");
+    //lhex("5.hex");
+    //lhex("0.hex");
+    lhex("mon42.hex");
 
     if (n>1) lhex(a[1]);
     tcgetattr( STDIN_FILENO, &oldt);
@@ -1962,7 +1957,7 @@ int main(int n, char** a)
     pw(L);
     pwf();
 
-    dump(0xf0, 0xff);
+    //dump(0xf0, 0xff);
 
     printf("\n"); fflush(stdout);
     tcsetattr( STDIN_FILENO, TCSANOW, &oldt);
