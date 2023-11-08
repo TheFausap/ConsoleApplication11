@@ -1,0 +1,196 @@
+$RIGHTMARGIN=80
+$ANALYZE=1
+/* MDOS V.1 11/5/2023
+   F. SAPORITO */
+3200H: DECLARE BOOT LITERALLY '0H';
+
+MONIT: PROCEDURE(FUNC,INFO) ADDRESS;
+    DECLARE FUNC BYTE,
+            LINFO BYTE,
+            INFO ADDRESS,
+            ARET ADDRESS,
+            RET BYTE;
+
+    DECLARE
+        TTI LITERALLY '1',
+        TTO LITERALLY '1',
+        TTS LITERALLY '0',
+        TTC LITERALLY '0',
+        LF  LITERALLY '10',
+        CR  LITERALLY '13';
+
+TTYOUT: PROCEDURE(CHAR);
+    DECLARE CHAR BYTE;
+        DO WHILE SHR(INPUT(TTS),7);
+        END;
+    OUTPUT(TTO) = CHAR AND 07FH;
+    END TTYOUT;
+
+TTYIN: PROCEDURE BYTE;
+        DO WHILE INPUT(TTS);
+        END;
+    RETURN INPUT(TTI) AND 07FH;
+    END TTYIN;
+
+PRINT$STR: PROCEDURE(A);
+    DECLARE A ADDRESS, (I, M BASED A) BYTE;
+    /* PRINT THE STRING STARTNG AT ADDRESS A UNTIL THE NEXT
+    OCCURENCE OF A DOLLAR SIGN */
+        DO WHILE(I:=M) <> '$'; CALL TTYOUT(I);
+	A = A + 1;
+	END;
+    END PRINT$STR;
+
+PRINT$HEX: PROCEDURE(A);
+    DECLARE A ADDRESS, (I,J) BYTE;
+    DECLARE TEMP(5) BYTE;
+    DO I = 2 TO 5;
+    J = A MOD 16 + '0';
+    IF J > '9' THEN J = J + 7;
+    TEMP(LENGTH(TEMP)-I) = J;
+    A = A / 16;
+    END;
+    TEMP(4) = '$';
+    CALL PRINT$STR(.TEMP);
+    END PRINT$HEX;
+
+PRINT$DEC: PROCEDURE(A);
+    DECLARE A ADDRESS, (I,J) BYTE;
+    DECLARE TEMP(6) BYTE;
+    DO I = 2 TO 6;
+    J = A MOD 10 + '0';
+    TEMP(LENGTH(TEMP)-I) = J;
+    A = A / 10;
+    END;
+    TEMP(5) = '$';
+    CALL PRINT$STR(.TEMP);
+    END PRINT$DEC;
+
+PRINT$OCT: PROCEDURE(A);
+    DECLARE A ADDRESS, (I,J) BYTE;
+    DECLARE TEMP(7) BYTE;
+    DO I = 2 TO 7;
+    J = A MOD 8 + '0';
+    TEMP(LENGTH(TEMP)-I) = J;
+    A = A / 8;
+    END;
+    TEMP(6) = '$';
+    CALL PRINT$STR(.TEMP);
+    END PRINT$OCT;
+
+READ: PROCEDURE;
+    /* READ CHARACTERS FROM THE CONSOLE DEVICE
+    INTO THE MEMORY LOCATION GIVEN BY 'INFO',
+    UNTIL THE FIRST CARRIAGE RETURN
+    IS ENCOUNTERED.  ALLOW BACKSPACE (RUBOUT),
+    LINE ELIMINATE (CTL U), AND SYSTEM RE-BOOT
+    (CTL C) */
+    DECLARE
+        SLASH LITERALLY '5CH',
+        CTLC  LITERALLY '03H',
+        CTLU  LITERALLY '15H',
+        CTL   LITERALLY '5EH',
+        CTLE  LITERALLY '05H',
+        CTLZ  LITERALLY '1AH',
+        CTLL  LITERALLY '0CH';
+
+    /*  THE INFO POINTER IS ASSUMED TO ADDRESS AN
+    AREA OF MEMORY CONTAINING TWO BYTE QUANTITIES.
+    THE FIRST GIVES THE MAXIMUM BUFFER LENGTH, AND
+    THE SECOND IS SET TO THE NUMBER OF CHARACTERS
+    SCANNED UPON RETURN */
+
+    DECLARE MAXL BASED INFO BYTE,  /* MAX LENGTH */
+        COMLEN BYTE,               /* SCANNED LENGTH */
+        BUFFER BASED INFO BYTE,    /* BUFFER */
+        C BYTE;
+
+    CTLOUT: PROCEDURE;
+        /* PRINT UP-ARROW IN FRONT OF LAST CHARACTER READ */
+        CALL TTYOUT(CTL); CALL TTYOUT(C OR 40H);
+        END CTLOUT;
+
+    COMLEN = 0;
+        DO WHILE COMLEN < MAXL;
+        IF (C := TTYIN) = CTLC THEN
+            DO; CALL CTLOUT; CALL CRLF;
+            GO TO BOOT;
+            END;
+        IF C = CTLE THEN /* PHYSICAL RETURN */
+            CALL CRLF; ELSE
+        IF C = CR THEN
+            DO; BUFFER(1) = COMLEN;
+            CALL TTYOUT(CR);
+            RETURN;
+            END;
+        IF C = CTLU THEN
+            DO; CALL CTLOUT; CALL CRLF; COMLEN=0;
+            END; ELSE
+        IF C = 7FH THEN /* RUBOUT */
+            DO;
+            IF COMLEN > 0 THEN
+                CALL TTYOUT(BUFFER((COMLEN:=COMLEN-1)+2));
+            END; ELSE
+            DO;
+            IF (C AND 01100000B) = 0 THEN /* CONTROL CHARACTER */
+                CALL CTLOUT; ELSE
+            CALL TTYOUT(C);
+            BUFFER ((COMLEN:=COMLEN+1)+1) = C;
+            END;
+        END;
+    END READ;
+
+/* 42: EVERYTHING STARTS HERE */
+
+    DECLARE STACK (16) ADDRESS,
+      OLDSP ADDRESS;
+
+    OLDSP = STACKPTR;
+    STACKPTR = .STACK(LENGTH(STACK));
+    /* CALLING PROGRAM'S STACK TOP ADDRESS NOW SAVED */
+
+    LINFO = LOW(INFO);
+    ARET, RET = 0;
+
+        DO CASE FUNC;
+        /* 0 */
+        GO TO BOOT;
+        /* 1: READ FROM TTY */
+        DO; RET = TTYIN; 
+        CALL TTYOUT(RET); 
+        END;
+        /* 2: TYPEOUT ON TTY */
+        CALL TTYOUT(LINFO);
+        /* 3 */
+        ;
+        /* 4 */
+        ;
+        /* 5 */
+        ;
+        /* 6: INTERROGATE MEMORY SIZE */
+        ARET=2900H;
+        /* 7: INTERROGATE TTY STATUS */
+        RET = INPUT(TTS);
+        /* 8 */
+        ;
+        /* 9: PRINT BUFFER ON TTY */
+        CALL PRINT$STR(INFO);
+        /* 10: READ BUFFER ON TTY */
+        CALL READ;
+        /* 11 */
+        ;
+        /* 12: PRINT HEX NUMBER ON TTY */
+        CALL PRINT$HEX(INFO);
+
+        END; /* END OF CASES */
+
+    GOBACK:
+    /* RESTORE THE USER'S STACK AREA */
+    STACKPTR = OLDSP;
+
+    /* RETURN A SINGLE OR DOUBLE BYTE VALUE */
+    RETURN ARET OR RET;
+
+END MONIT;
+
+EOF
