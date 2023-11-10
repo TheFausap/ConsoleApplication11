@@ -335,7 +335,7 @@ void in(word t)
     switch (t) {
     case 0:
         // STATUS
-	    for (int i = 0; i < 10000; i++) {}
+	    //for (int i = 0; i < 100000; i++) {}
         rr = rand()%0xfff;
         if (rr > 0x3ef) mv(A, st1);
         else mv(A, st2);
@@ -1931,7 +1931,9 @@ int main(int n, char** a)
     //lhex("3829.hex");
     //lhex("5.hex");
     //lhex("0.hex");
-    lhex("mon42.hex");
+    lhex("42dos.hex");
+    lhex("42cp.hex");
+    
 
     if (n>1) lhex(a[1]);
     tcgetattr( STDIN_FILENO, &oldt);
@@ -1957,7 +1959,7 @@ int main(int n, char** a)
     pw(L);
     pwf();
 
-    //dump(0xf0, 0xff);
+    dump(0100, 0120);
 
     printf("\n"); fflush(stdout);
     tcsetattr( STDIN_FILENO, TCSANOW, &oldt);

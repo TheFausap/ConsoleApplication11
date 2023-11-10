@@ -1,8 +1,8 @@
 		ORG 	4400Q
 ;
 ;
-OUTR	EQU 	106Q
-INP		EQU		137Q
+OUTR	EQU 	3227H
+INP		EQU		3242H
 MINCH	EQU 	300Q
 MAXCH	EQU 	077Q
 ;
@@ -753,7 +753,7 @@ ERSQ:	MOV		L,C
 		CALL 	WZER
 		JMP 	ALDN
 ;
-CVR1:	CALL	ZCHK
+CVRT:	CALL	ZCHK
 		JNZ		NNZRO
 		INR 	C
 		INR 	C
@@ -1176,4 +1176,19 @@ ZROIT:	MOV 	L,C
 		INR 	L
 		MOV 	M,A
 		RET
+;
+FPTBL:
+        JMP    	NORM
+        JMP    	FLOAT
+        JMP    	WZER
+        JMP    	LADD
+        JMP    	LMUL
+        JMP    	LDIV
+        JMP    	LSUB
+        JMP    	DFXL
+        JMP    	LMCM
+        JMP    	COPY
+        JMP     CVRT
+        JMP    	INPUT
+
 		END
