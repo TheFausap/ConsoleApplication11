@@ -12,3 +12,5 @@ It requires odt.asm (basic I/O routines)
 
 The emulator accepts as input hex files
 
+Do not work under Windows, due to the terminal emulation specifically designed for UNIX systems.
+You can use Visual Studio, with remote debugging.
