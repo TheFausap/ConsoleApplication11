@@ -5,6 +5,8 @@
 #include <ctype.h>
 #include <stdint.h>
 #include <time.h>
+#include <unistd.h>
+#include <termios.h>
 
 #define WSIZE 8
 #define MSIZE 65536
@@ -28,6 +30,8 @@ word ONES16[2 * WSIZE];
 uint16_t PC;
 char HLTF;
 word dly;
+
+static struct termios oldt, newt;
 
 word* M[MSIZE];
 
@@ -92,8 +96,8 @@ void cmp(word* a)
 {
     word c = 0;
     for (int i = 0; i < WSIZE; i++) a[i] = a[i] ^ 1;
-    for (int i = WSIZE - 1; i >= 0; i--) 
-       a[i] = ab(a[i], ONE[i], &c);
+    //for (int i = WSIZE - 1; i >= 0; i--) 
+    //   a[i] = ab(a[i], ONE[i], &c);
 }
 
 word b2u(word* v)
@@ -247,20 +251,12 @@ void _sub(word* r, word* ss, word* c)
     s = calloc(WSIZE, sizeof(char));
     oFL = calloc(WSIZE, sizeof(char));
     mv(s, ss);
-    
-    if (*c) {
-        mv(oFL, FL);
-        _add(s, ZERO, c);
-        *c = 0;
-        mv(FL, oFL);
-    }
     cmp(s);
     for (int i = WSIZE - 1; i >= 0; i--) {
         r[i] = ab(r[i], s[i], c);
         if (i == 3) FL[3] = *c;
     }
-    FL[7] = (isz(s)==1) ? *c : (*c) ^ 1;
-    //FL[7] = (*c) ^ 1;
+    FL[7] = (*c) ^ 1;
     FL[0] = r[0];
     if (isz(r)) FL[1] = 1; else FL[1] = 0;
     FL[5] = (cnt1(r) % 2) ^ 1;
@@ -334,19 +330,19 @@ void _daa(void)
 void in(word t)
 {
     int rr = 0;
+    word st1[] = { 0,0,0,0,0,1,0,1 };
+    word st2[] = { 1,0,0,0,0,1,0,0 };
     switch (t) {
     case 0:
-        if (dly) {
-            dly = 0;
-            for (int i = 0; i < 1000000; i++) {}
-            rr = rand();
-            if (rr > 0x3ef) mv(A, (word*)"01100111");
-            else mv(A, (word*)"10011100");
-        }
+        // STATUS
+	    //for (int i = 0; i < 100000; i++) {}
+        rr = rand()%0xfff;
+        if (rr > 0x3ef) mv(A, st1);
+        else mv(A, st2);
         break;
     case 1:
-        u8b(getc(stdin), A);
-        dly = 1;
+        // DATA
+        u8b(getchar(), A);
         break;
     default:
         break;
@@ -357,11 +353,8 @@ void out(word t)
 {
     switch (t) {
     case 1:
-        if (dly == 0) {
-            fprintf(stdout, "%c", b2u(A));
-            fflush(stdout);
-        }
-        dly = 1;
+        // DATA
+        putchar((char)b2u(A));
         break;
     default:
         break;
@@ -409,6 +402,7 @@ void exc(word* a)
         PC++;
         break;
     case 0x90:
+        c = 1;
         _sub(A, B, &c);
         PC++;
         break;
@@ -522,6 +516,7 @@ void exc(word* a)
         PC++;
         break;
     case 0x91:
+        c = 1;
         _sub(A, C, &c);
         PC++;
         break;
@@ -604,6 +599,7 @@ void exc(word* a)
         PC++;
         break;
     case 0x92:
+        c = 1;
         _sub(A, D, &c);
         PC++;
         break;
@@ -700,6 +696,7 @@ void exc(word* a)
         PC++;
         break;
     case 0x93:
+        c = 1;
         _sub(A, E, &c);
         PC++;
         break;
@@ -796,6 +793,7 @@ void exc(word* a)
         PC++;
         break;
     case 0x94:
+        c = 1;
         _sub(A, H, &c);
         PC++;
         break;
@@ -897,7 +895,7 @@ void exc(word* a)
         PC++;
         break;
     case 0x95:
-
+        c = 1;
         _sub(A, L, &c);
         PC++;
         break;
@@ -979,6 +977,7 @@ void exc(word* a)
         break;
     case 0x96:
         ad = b2u16(H, L);
+        c = 1;
         _sub(A, M[ad], &c);
         PC++;
         break;
@@ -1005,6 +1004,7 @@ void exc(word* a)
         PC++;
         break;
     case 0xD6:
+        c = 1;
         _sub(A, M[++PC], &c);
         PC++;
         break;
@@ -1082,6 +1082,7 @@ void exc(word* a)
         PC++;
         break;
     case 0x97:
+        c = 1;
         _sub(A, A, &c);
         PC++;
         break;
@@ -1144,7 +1145,7 @@ void exc(word* a)
         PC++;
         break;
     case 0x98:
-        c = FL[7];
+        c = FL[7] ^ 1;
         _sub(A, B, &c);
         PC++;
         break;
@@ -1158,6 +1159,7 @@ void exc(word* a)
         break;
     case 0xB8:
         mv(t, A);
+        c = 1;
         _sub(A, B, &c);
         mv(A, t);
         PC++;
@@ -1259,7 +1261,7 @@ void exc(word* a)
         PC++;
         break;
     case 0x99:
-        c = FL[7];
+        c = FL[7] ^ 1;
         _sub(A, C, &c);
         PC++;
         break;
@@ -1273,6 +1275,7 @@ void exc(word* a)
         break;
     case 0xB9:
         mv(t, A);
+        c = 1;
         _sub(A, C, &c);
         mv(A, t);
         PC++;
@@ -1297,6 +1300,7 @@ void exc(word* a)
         SP[10] = L[2]; SP[11] = L[3];
         SP[12] = L[4]; SP[13] = L[5];
         SP[14] = L[6]; SP[15] = L[7];
+        PC++;
         break;
     case 0xA:
         // LDAX
@@ -1345,7 +1349,7 @@ void exc(word* a)
         PC++;
         break;
     case 0x9A:
-        c = FL[7];
+        c = FL[7] ^ 1;
         _sub(A, D, &c);
         PC++;
         break;
@@ -1359,6 +1363,7 @@ void exc(word* a)
         break;
     case 0xBA:
         mv(t, A);
+        c = 1;
         _sub(A, D, &c);
         mv(A, t);
         PC++;
@@ -1436,7 +1441,7 @@ void exc(word* a)
         PC++;
         break;
     case 0x9B:
-        c = FL[7];
+        c = FL[7] ^ 1;
         _sub(A, E, &c);
         PC++;
         break;
@@ -1450,6 +1455,7 @@ void exc(word* a)
         break;
     case 0xBB:
         mv(t, A);
+        c = 1;
         _sub(A, E, &c);
         mv(A, t);
         PC++;
@@ -1525,7 +1531,7 @@ void exc(word* a)
         PC++;
         break;
     case 0x9C:
-        c = FL[7];
+        c = FL[7] ^ 1;
         _sub(A, H, &c);
         PC++;
         break;
@@ -1539,6 +1545,7 @@ void exc(word* a)
         break;
     case 0xBC:
         mv(t, A);
+        c = 1;
         _sub(A, H, &c);
         mv(A, t);
         PC++;
@@ -1621,7 +1628,7 @@ void exc(word* a)
         PC++;
         break;
     case 0x9D:
-        c = FL[7];
+        c = FL[7] ^ 1;
         _sub(A, L, &c);
         PC++;
         break;
@@ -1635,6 +1642,7 @@ void exc(word* a)
         break;
     case 0xBD:
         mv(t, A);
+        c = 1;
         _sub(A, L, &c);
         mv(A, t);
         PC++;
@@ -1695,7 +1703,7 @@ void exc(word* a)
         break;
     case 0x9E:
         ad = b2u16(H, L);
-        c = FL[7];
+        c = FL[7] ^ 1;
         _sub(A, M[ad], &c);
         PC++;
         break;
@@ -1711,6 +1719,7 @@ void exc(word* a)
     case 0xBE:
         ad = b2u16(H, L);
         mv(t, A);
+        c = 1;
         _sub(A, M[ad], &c);
         mv(A, t);
         PC++;
@@ -1723,7 +1732,7 @@ void exc(word* a)
         break;
     case 0xDE:
         // SBI
-        c = FL[7];
+        c = FL[7] ^ 1;
         _sub(A, M[++PC], &c);
         PC++;
         break;
@@ -1738,6 +1747,7 @@ void exc(word* a)
         break;
     case 0xFE:
         mv(t, A);
+        c = 1;
         _sub(A, M[++PC], &c);
         mv(A, t);
         PC++;
@@ -1794,7 +1804,7 @@ void exc(word* a)
         PC++;
         break;
     case 0x9F:
-        c = FL[7];
+        c = FL[7] ^ 1;
         _sub(A, A, &c);
         PC++;
         break;
@@ -1808,6 +1818,7 @@ void exc(word* a)
         break;
     case 0xBF:
         mv(t, A);
+        c = 1;
         _sub(A, A, &c);
         mv(A, t);
         PC++;
@@ -1856,7 +1867,7 @@ word* x2b(char* s)
 
 void lhex(char *n)
 {
-    char* bf, * p, * du2, * du4, * da, * oda;
+    char* bf, * p, * du2, * du4, * da, * oda, pcs=0;
     int bc, ad, rc, ck;
 
     FILE* fi;
@@ -1873,7 +1884,7 @@ void lhex(char *n)
     while (fgets(bf, 79, fi)) {
         da = oda;
         p = strchr(bf, '\n');
-        *p = 0;
+        if (p) *p = 0;
         if (*bf == ' ') bf++; // remove initial space from weird PL/M output
         if (*bf != ':') continue;
         if (strcmp(bf, ":00000001FF") == 0) break;
@@ -1882,12 +1893,18 @@ void lhex(char *n)
         bc = (int)strtol(strncpy(du2, bf, 2), NULL, 16);
         bf += 2;
         ad = (int)strtol(strncpy(du4, bf, 4), NULL, 16);
-        if (!PC) PC = ad;
         bf += 4;
         rc = (int)strtol(strncpy(du2, bf, 2), NULL, 16);
         bf += 2;
         memcpy(da, bf, bc * 2);
         bf += (bc * 2);
+        if (rc==0) {
+            if(!pcs) {
+                PC+=ad;
+                pcs=1;
+            }
+        }
+        else if (rc==4) PC=da[0]*256+da[1];
         ck = (int)strtol(strncpy(du2, bf, 2), NULL, 16);
         for (int i = 0; i < 2 * bc; i += 2) {
             du2[0] = da[0]; du2[1] = da[1];
@@ -1901,8 +1918,10 @@ void lhex(char *n)
 
 void dump(uint16_t s, uint16_t e)
 {
+    char cc = 0;
     for (uint16_t i = s; i <= e; i++) {
-        printf("%04XH: (%c)", i,(char)b2u(M[i])); pw(M[i]);
+        cc = (char)b2u(M[i]);
+        printf("%04XH: (%c) ", i,(cc>32)?cc:'.'); pw(M[i]);
     }
     printf("\n");
 }
@@ -1910,10 +1929,24 @@ void dump(uint16_t s, uint16_t e)
 int main(int n, char** a)
 {
     i0();
-    lhex("3809.hex");
+    //lhex("3809.hex");
+    //lhex("3829.hex");
+    //lhex("5.hex");
+    //lhex("0.hex");
+    //lhex("42dos.hex");
+    //lhex("42cp.hex");
+    
 
-    if (n>1) lhex(a[1]);
-
+    if (n>1) {
+    	for(int i=1;i<n;i++) lhex(a[i]);
+    }
+    tcgetattr( STDIN_FILENO, &oldt);
+    newt=oldt;
+    newt.c_lflag &= ~(ICANON);
+    newt.c_lflag &= ~(ECHO);
+    newt.c_oflag |= (OPOST|ONLRET);
+    tcsetattr( STDIN_FILENO, TCSANOW, &newt);
+    printf("I8080B\n");
     printf("Starting at %04XH\n", PC);
 
     while (HLTF == 0) {
@@ -1930,9 +1963,10 @@ int main(int n, char** a)
     pw(L);
     pwf();
 
-    dump(0xf0, 0xff);
+    dump(0x900, 0x920);
 
     printf("\n"); fflush(stdout);
+    tcsetattr( STDIN_FILENO, TCSANOW, &oldt);
    
     return 0;
 }
