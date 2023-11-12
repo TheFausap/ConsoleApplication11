@@ -1918,8 +1918,10 @@ void lhex(char *n)
 
 void dump(uint16_t s, uint16_t e)
 {
+    char cc = 0;
     for (uint16_t i = s; i <= e; i++) {
-        printf("%04XH: (%c)", i,(char)b2u(M[i])); pw(M[i]);
+        cc = (char)b2u(M[i]);
+        printf("%04XH: (%c) ", i,(cc>32)?cc:'.'); pw(M[i]);
     }
     printf("\n");
 }
@@ -1931,11 +1933,13 @@ int main(int n, char** a)
     //lhex("3829.hex");
     //lhex("5.hex");
     //lhex("0.hex");
-    lhex("42dos.hex");
-    lhex("42cp.hex");
+    //lhex("42dos.hex");
+    //lhex("42cp.hex");
     
 
-    if (n>1) lhex(a[1]);
+    if (n>1) {
+    	for(int i=1;i<n;i++) lhex(a[i]);
+    }
     tcgetattr( STDIN_FILENO, &oldt);
     newt=oldt;
     newt.c_lflag &= ~(ICANON);
@@ -1959,7 +1963,7 @@ int main(int n, char** a)
     pw(L);
     pwf();
 
-    dump(0100, 0120);
+    dump(0x900, 0x920);
 
     printf("\n"); fflush(stdout);
     tcsetattr( STDIN_FILENO, TCSANOW, &oldt);
