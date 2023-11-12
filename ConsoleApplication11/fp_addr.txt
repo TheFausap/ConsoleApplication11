@@ -1,0 +1,15 @@
+ 1774 C3 AD 0A	         JMP    NORM
+ 1777 C3 D5 0A	         JMP    FLOAT
+ 177A C3 8D 0B	         JMP    WZER
+ 177D C3 5C 09	         JMP    LADD
+ 1780 C3 5F 0A	         JMP    LMUL
+ 1783 C3 00 09	         JMP    LDIV
+ 1786 C3 60 09	         JMP    LSUB
+ 1789 C3 CE 0A	         JMP    DFXL
+ 178C C3 57 0A	         JMP    LMCM
+ 178F C3 88 0E	         JMP    COPY
+ 1792 C3 20 0D	         JMP    CVRT
+ 1795 C3 B2 0E	         JMP    INPUT
+ 1798 C3 EF 0F	         JMP    MULT
+ 179B C3 CF 0F	         JMP    PTVAL
+
